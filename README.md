@@ -9,7 +9,22 @@ A lightweight and fast FastAPI starter service designed for rapid prototyping.
 
 ## Quick Start
 
-### 1. Activate Virtual Environment
+### 1. Create Virtual Environment (First time setup)
+
+```bash
+python -m venv .venv
+```
+
+*(Optional) Copy environment variables:*
+```bash
+# Windows (PowerShell)
+Copy-Item .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+### 2. Activate Virtual Environment
 
 **Windows (PowerShell):**
 ```powershell
@@ -26,12 +41,12 @@ A lightweight and fast FastAPI starter service designed for rapid prototyping.
 source .venv/bin/activate
 ```
 
-### 2. Install Dependencies (if not already installed)
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run the Development Server
+### 4. Run the Development Server
 ```bash
 python main.py
 ```
