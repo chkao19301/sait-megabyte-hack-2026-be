@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Nunito", "Segoe UI", ui-rounded, system-ui, sans-serif;
+}
+
+button,
+input,
+summary {
+  font: inherit;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.portrait-mask {
+  -webkit-mask-image: radial-gradient(ellipse 72% 68% at 50% 46%, #000 40%, transparent 76%);
+  mask-image: radial-gradient(ellipse 72% 68% at 50% 46%, #000 40%, transparent 76%);
+}
+
+.disgruntled-grade {
+  filter: saturate(0.32) brightness(0.8) contrast(1.05);
+}
+
+.screen-shake {
+  animation: screen-shake 0.42s linear infinite;
+}
+
+.rupture-shake {
+  animation: rupture-shake 0.18s linear infinite;
+}
+
+.pet-float {
+  animation: pet-float 3.4s ease-in-out infinite;
+}
+
+.paw-tap {
+  animation: paw-tap 2.4s ease-in-out infinite;
+}
+
+.twinkle {
+  animation: twinkle 1.8s ease-in-out infinite;
+}
+
+.sun-spin {
+  animation: sun-spin 22s linear infinite;
+}
+
+.drip {
+  animation: drip 1.8s ease-in infinite;
+}
+
+.glitch-a,
+.glitch-b {
+  mix-blend-mode: multiply;
+}
+
+.glitch-a {
+  animation: slice-a 0.28s steps(2, end) infinite;
+  filter: sepia(1) saturate(10) hue-rotate(-35deg) contrast(1.45) brightness(0.7);
+  opacity: 0.9;
+}
+
+.glitch-b {
+  animation: slice-b 0.22s steps(2, end) infinite;
+  filter: grayscale(1) contrast(1.8) brightness(0.35);
+  opacity: 0.75;
+}
+
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(0, 0, 0, 0.28) 4px
+  );
+}
+
+.rgb-frame {
+  box-shadow:
+    -4px 0 0 rgba(255, 0, 70, 0.45),
+    4px 0 0 rgba(40, 255, 210, 0.28),
+    0 18px 50px rgba(80, 0, 0, 0.45);
+}
+
+.gold-flash {
+  background: linear-gradient(#fff, #fde68a);
+  animation: gold-flash 400ms ease-out forwards;
+}
+
+.purge-shard {
+  animation: shard-fly 900ms ease-out forwards;
+}
+
+.blood-wipe {
+  animation: blood-wipe 800ms ease forwards;
+}
+
+@keyframes screen-shake {
+  0%,
+  100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, 0); }
+}
+
+@keyframes rupture-shake {
+  0%,
+  100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-7px, 2px) rotate(-0.7deg); }
+  40% { transform: translate(7px, -3px) rotate(0.7deg); }
+  60% { transform: translate(-5px, 3px) rotate(-0.4deg); }
+  80% { transform: translate(6px, 1px) rotate(0.5deg); }
+}
+
+@keyframes pet-float {
+  0%,
+  100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes paw-tap {
+  0%,
+  62%,
+  100% { transform: translateY(0); }
+  78% { transform: translateY(7px); }
+}
+
+@keyframes twinkle {
+  0%,
+  100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes sun-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes drip {
+  0% { transform: translateY(-14px); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateY(36px); opacity: 0.85; }
+}
+
+@keyframes slice-a {
+  0% { clip-path: inset(8% 0 68% 0); transform: translate(-6px, 0); }
+  40% { clip-path: inset(42% 0 28% 0); transform: translate(7px, 1px); }
+  100% { clip-path: inset(70% 0 6% 0); transform: translate(-4px, -1px); }
+}
+
+@keyframes slice-b {
+  0% { clip-path: inset(62% 0 8% 0); transform: translate(5px, 0); }
+  50% { clip-path: inset(18% 0 52% 0); transform: translate(-7px, 2px); }
+  100% { clip-path: inset(48% 0 22% 0); transform: translate(4px, -2px); }
+}
+
+@keyframes gold-flash {
+  0% { opacity: 0; }
+  35% { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+
+@keyframes shard-fly {
+  to {
+    transform: translate(var(--dx), var(--dy)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes blood-wipe {
+  to {
+    opacity: 0;
+    transform: translateY(-36px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-shake,
+  .rupture-shake,
+  .glitch-a,
+  .glitch-b,
+  .pet-float,
+  .paw-tap,
+  .twinkle,
+  .drip,
+  .purge-shard,
+  .sun-spin,
+  .blood-wipe {
+    animation: none !important;
+  }
+}
