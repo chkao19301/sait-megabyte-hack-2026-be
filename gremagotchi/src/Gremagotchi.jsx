@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Flame, Inbox, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Flame, Inbox, Plus, Trash2, Volume2, VolumeX, X } from 'lucide-react'
 import happyPortrait from './assets/mote-happy.jpg'
 import midPortrait from './assets/mote-mid.jpg'
 import eldritchPortrait from './assets/mote-eldritch.jpg'
@@ -36,6 +36,22 @@ const GIBBERISH = [
   'glrbb... wifi tastes like teeth... mmmngh',
   'nnn /// the boxes are chewing... hhhkk',
   'skraa... uncheck... the dark is wet... gllk',
+]
+
+const NEUTRAL_LINES = [
+  "I'm here with you. One little step at a time.",
+  'No rush. We can start with something small.',
+  'A little progress still counts.',
+  "Let's pick one gentle thing to do.",
+  "I'm quietly cheering you on.",
+]
+
+const DISGRUNTLED_LINES = [
+  'We missed a few rituals... but there is still time.',
+  'I noticed those unchecked boxes. Just saying.',
+  "Don't make me stare at these tasks all day.",
+  "One task. That's all I'm asking.",
+  'The checklist and I are both disappointed.',
 ]
 
 const THEMES = {
@@ -257,8 +273,23 @@ function displayedStreak(state) {
 
 function speechLine(mood, tick) {
   if (mood === 'ascended') return 'your doing great keep going UwU🩷'
-  if (mood === 'neutral' || mood === 'disgruntled') return '...'
+  if (mood === 'neutral') return NEUTRAL_LINES[tick % NEUTRAL_LINES.length]
+  if (mood === 'disgruntled') return DISGRUNTLED_LINES[tick % DISGRUNTLED_LINES.length]
   return GIBBERISH[tick % GIBBERISH.length]
+}
+
+function speakText(text) {
+  window.speechSynthesis.cancel()
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = 'en-US'
+  utterance.pitch = 0.45
+  utterance.rate = 0.82
+  const voices = window.speechSynthesis.getVoices()
+  utterance.voice = voices.find((voice) => /david|daniel|mark|alex|guy|male/i.test(voice.name)
+    && voice.lang.toLowerCase().startsWith('en'))
+    || voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
+    || null
+  window.speechSynthesis.speak(utterance)
 }
 
 function makeShards() {
@@ -427,11 +458,20 @@ export default function Gremagotchi() {
   const [inboxOpen, setInboxOpen] = useState(false)
   const [readIds, setReadIds] = useState(loadReadIds)
   const [hiddenPopups, setHiddenPopups] = useState(() => new Set())
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
   const purgeRef = useRef(null)
+  const lastSpokenRef = useRef('')
+  const voiceSupported = typeof window !== 'undefined'
+    && 'speechSynthesis' in window
+    && typeof SpeechSynthesisUtterance !== 'undefined'
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
+
+  useEffect(() => () => {
+    if (voiceSupported) window.speechSynthesis.cancel()
+  }, [voiceSupported])
 
   useEffect(() => {
     const tick = () => setState((current) => rollover(current))
@@ -481,6 +521,25 @@ export default function Gremagotchi() {
   if (purge && (purge.stage === 'rupture' || purge.stage === 'flash')) speech = 'WAIT— DON’T—'
   if (purge?.stage === 'banish') speech = purge.line
   if (purge?.stage === 'reveal') speech = speechLine(mood, lineTick)
+
+  useEffect(() => {
+    if (!voiceEnabled || !voiceSupported || lastSpokenRef.current === speech) return
+    lastSpokenRef.current = speech
+    speakText(speech)
+  }, [speech, voiceEnabled, voiceSupported])
+
+  function toggleVoice() {
+    if (!voiceSupported) return
+    if (voiceEnabled) {
+      window.speechSynthesis.cancel()
+      lastSpokenRef.current = ''
+      setVoiceEnabled(false)
+      return
+    }
+    lastSpokenRef.current = speech
+    speakText(speech)
+    setVoiceEnabled(true)
+  }
 
   function startPurge(toMood) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -669,12 +728,30 @@ export default function Gremagotchi() {
             name={state.petName}
             wiping={wiping}
           />
-          <p
-            aria-live="polite"
-            className={`relative z-20 -mt-5 rounded-[1.4rem] px-4 py-3 text-base leading-snug font-bold ${theme.bubble}`}
-          >
-            {speech}
-          </p>
+          <div className="relative z-20 -mt-5 flex items-start gap-2">
+            <p
+              aria-live="polite"
+              className={`min-h-12 flex-1 rounded-[1.4rem] px-4 py-3 text-base leading-snug font-bold ${theme.bubble}`}
+            >
+              {speech}
+            </p>
+            <button
+              type="button"
+              onClick={toggleVoice}
+              disabled={!voiceSupported}
+              aria-label={
+                voiceSupported
+                  ? voiceEnabled ? 'Turn speech off' : 'Read speech aloud'
+                  : 'Speech output is not supported by this browser'
+              }
+              aria-pressed={voiceEnabled}
+              className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${theme.bubble} focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              {voiceEnabled
+                ? <Volume2 className="h-5 w-5" aria-hidden="true" />
+                : <VolumeX className="h-5 w-5" aria-hidden="true" />}
+            </button>
+          </div>
         </div>
 
         <div className="mt-4">
