@@ -153,9 +153,16 @@ function formatDate(key) {
   })
 }
 
+function createTaskId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `task-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 function freshTasks() {
   return DEFAULT_TASKS.map((label) => ({
-    id: crypto.randomUUID(),
+    id: createTaskId(),
     label,
     done: false,
   }))
@@ -213,7 +220,7 @@ function loadState() {
     const tasks = parsed.tasks
       .filter((task) => task && typeof task.label === 'string' && task.label.trim())
       .map((task) => ({
-        id: String(task.id || crypto.randomUUID()),
+        id: String(task.id || createTaskId()),
         label: task.label.trim().slice(0, 80),
         done: Boolean(task.done),
       }))
@@ -574,7 +581,7 @@ export default function Gremagotchi() {
     if (!label) return
     setState((current) => ({
       ...current,
-      tasks: [...current.tasks, { id: crypto.randomUUID(), label, done: false }],
+      tasks: [...current.tasks, { id: createTaskId(), label, done: false }],
     }))
     setDraft('')
     setLineTick((value) => value + 1)
