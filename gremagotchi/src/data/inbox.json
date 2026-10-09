@@ -1,0 +1,50 @@
+{
+  "empty": "Nothing missed.",
+  "fallback": {
+    "disgruntled": [
+      {
+        "title": "You’re letting a rodent watch you throw away your life in real time. Have some shame.",
+        "body": ""
+      },
+      {
+        "title": "I hope your comfort zone is cozy, because you’re going to die in it.",
+        "body": ""
+      },
+      {
+        "title": "Skipping today didn't save you any time; it just brought your failure 24 hours closer.",
+        "body": ""
+      },
+      {
+        "title": "You treat your own ambitions like suggestions, and wonder why nobody takes you seriously.",
+        "body": ""
+      }
+    ],
+    "eldritch": [
+      {
+        "title": "Your life is burning away, little by little.",
+        "body": ""
+      },
+      {
+        "title": "Every unfinished goal is a little gravestone with your name already carved on it.",
+        "body": ""
+      },
+      {
+        "title": "Every empty checkmark is proof that you’d rather disappoint yourself than feel uncomfortable for twenty minutes.",
+        "body": ""
+      },
+      {
+        "title": "You’re letting a rodent watch you throw away your life in real time. Have some shame.",
+        "body": ""
+      },
+      {
+        "title": "I hope your comfort zone is cozy, because you’re going to die in it.",
+        "body": ""
+      },
+      {
+        "title": "Skipping today didn't save you any time; it just brought your failure 24 hours closer.",
+        "body": ""
+      }
+    ]
+  },
+  "habits": {}
+}

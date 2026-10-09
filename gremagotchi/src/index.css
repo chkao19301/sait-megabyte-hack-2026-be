@@ -104,6 +104,10 @@ summary::-webkit-details-marker {
   animation: blood-wipe 800ms ease forwards;
 }
 
+.eldritch-popup {
+  animation: popup-in 0.45s ease both;
+}
+
 @keyframes screen-shake {
   0%,
   100% { transform: translate(0, 0); }
@@ -182,6 +186,17 @@ summary::-webkit-details-marker {
   }
 }
 
+@keyframes popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .screen-shake,
   .rupture-shake,
@@ -193,7 +208,8 @@ summary::-webkit-details-marker {
   .drip,
   .purge-shard,
   .sun-spin,
-  .blood-wipe {
+  .blood-wipe,
+  .eldritch-popup {
     animation: none !important;
   }
 }
