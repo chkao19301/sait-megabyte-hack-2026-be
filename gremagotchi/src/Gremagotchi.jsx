@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, ChevronDown, Flame, Plus, Sparkles, Trash2 } from 'lucide-react'
-import goodPortrait from './assets/mote-good.png'
-import eldritchPortrait from './assets/mote-eldritch.png'
+import { createPortal } from 'react-dom'
+import { Check, ChevronDown, Flame, Inbox, Plus, Trash2, X } from 'lucide-react'
+import happyPortrait from './assets/mote-happy.jpg'
+import midPortrait from './assets/mote-mid.jpg'
+import eldritchPortrait from './assets/mote-eldritch.jpg'
+import bloodFrame from './assets/blood-frame.png'
+import inboxCatalog from './data/inbox.json'
 
 const STORAGE_KEY = 'gremagotchi.v1'
+const INBOX_READ_KEY = 'gremagotchi.inbox-read'
 
 const DEFAULT_TASKS = [
   'Drink water',
@@ -25,40 +30,13 @@ const PURGE_PARTIAL = [
   'PURIFICATION COMPLETE. I AM MERELY PASSIVE-AGGRESSIVE NOW.',
 ]
 
-const LINES = {
-  ascended: {
-    sweet: [
-      'You did the thing and the heavens filed a complaint about how perfect you are.',
-      'I would die for you. I am a hamster in a box. This is still true.',
-      'Every box you tick is a hymn. Please do not stop the hymn.',
-    ],
-    cult: [
-      (name, streak) =>
-        `Streak of ${streak}. The choir has learned ${name}'s name and will not stop singing it.`,
-      () => 'Bow your head. Not to me. To the version of you who checked every box.',
-      (name) => `${name} has been chosen. The grass agrees. The sun agrees. I agree too loudly.`,
-      () => 'We do not miss days. Missing is a kind of death, and we are so alive.',
-    ],
-  },
-  neutral: [
-    'Tap tap. Hello. I live in the glass. Do a small thing.',
-    'I am cute on purpose. The tasks are not optional on purpose.',
-    'We are normal. This is my favorite lie.',
-    'The day is young. I am bored in a charming way.',
-  ],
-  disgruntled: [
-    "Oh, you're back. I reheated nothing for you.",
-    'Some of us had a whole personality planned around your reading goal.',
-    'Side-eye is my love language and also my only language today.',
-    'Oh, NOW you show up. The bow stayed on. Out of spite.',
-  ],
-  eldritch: [
-    'I can hear your notifications. Finish your reading or I will haunt your router.',
-    'The unread tasks are growing teeth. I am being polite about it.',
-    'You left me at 0%. I have met the wifi. We are unionizing.',
-    'The bow is the only holy thing left. Do not test it.',
-  ],
-}
+const GIBBERISH = [
+  'krrth nnnng shhllk... the bow... nnn',
+  'hkk grrthnn mmmwaa click click skree',
+  'glrbb... wifi tastes like teeth... mmmngh',
+  'nnn /// the boxes are chewing... hhhkk',
+  'skraa... uncheck... the dark is wet... gllk',
+]
 
 const THEMES = {
   ascended: {
@@ -73,6 +51,8 @@ const THEMES = {
     muted: 'text-rose-800/70',
     check: 'border-amber-300 bg-amber-50 text-amber-700',
     checkOn: 'border-amber-400 bg-amber-400 text-white',
+    sheet: 'bg-rose-50 text-rose-950',
+    note: 'bg-white',
   },
   neutral: {
     page: 'bg-gradient-to-b from-stone-100 via-emerald-50 to-stone-200 text-stone-800',
@@ -86,6 +66,8 @@ const THEMES = {
     muted: 'text-stone-500',
     check: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     checkOn: 'border-emerald-500 bg-emerald-500 text-white',
+    sheet: 'bg-stone-50 text-stone-800',
+    note: 'bg-white',
   },
   disgruntled: {
     page: 'bg-gradient-to-b from-zinc-300 via-rose-100 to-zinc-400 text-zinc-800',
@@ -99,6 +81,8 @@ const THEMES = {
     muted: 'text-zinc-500',
     check: 'border-zinc-300 bg-zinc-50 text-zinc-600',
     checkOn: 'border-rose-400 bg-rose-400 text-white',
+    sheet: 'bg-zinc-100 text-zinc-800',
+    note: 'bg-white',
   },
   eldritch: {
     page: 'bg-[#14080b] text-rose-100',
@@ -112,6 +96,8 @@ const THEMES = {
     muted: 'text-rose-200/60',
     check: 'border-red-900 bg-zinc-950 text-red-200',
     checkOn: 'border-red-600 bg-red-700 text-white',
+    sheet: 'bg-[#1a0c10] text-rose-100',
+    note: 'bg-zinc-950 ring-1 ring-red-950',
   },
 }
 
@@ -121,14 +107,6 @@ const MOOD_LABEL = {
   disgruntled: 'Disgruntled',
   eldritch: 'Eldritch',
 }
-
-const SPARKLE_SPOTS = [
-  ['8%', '34%'],
-  ['18%', '14%'],
-  ['84%', '46%'],
-  ['14%', '58%'],
-  ['62%', '18%'],
-]
 
 function todayKey(date = new Date()) {
   const year = date.getFullYear()
@@ -170,7 +148,7 @@ function freshTasks() {
 
 function freshState() {
   return {
-    petName: 'Mote',
+    petName: 'Marshmallow',
     tasks: freshTasks(),
     log: {},
     activeDate: todayKey(),
@@ -193,11 +171,13 @@ function rollover(state, today = todayKey()) {
     log[state.activeDate] = {
       done: state.tasks.filter((task) => task.done).length,
       total,
+      missed: state.tasks.filter((task) => !task.done).map((task) => task.label),
     }
+    const everyLabel = state.tasks.map((task) => task.label)
     let cursor = addDays(state.activeDate, 1)
     let guard = 0
     while (cursor < today && guard < 400) {
-      log[cursor] = { done: 0, total }
+      log[cursor] = { done: 0, total, missed: everyLabel }
       cursor = addDays(cursor, 1)
       guard += 1
     }
@@ -225,9 +205,9 @@ function loadState() {
         done: Boolean(task.done),
       }))
     return rollover({
-      petName: typeof parsed.petName === 'string' && parsed.petName.trim()
+      petName: typeof parsed.petName === 'string' && parsed.petName.trim() && parsed.petName.trim() !== 'Mote'
         ? parsed.petName.trim().slice(0, 24)
-        : 'Mote',
+        : 'Marshmallow',
       tasks,
       log: parsed.log && typeof parsed.log === 'object' ? parsed.log : {},
       activeDate: typeof parsed.activeDate === 'string' ? parsed.activeDate : todayKey(),
@@ -275,15 +255,10 @@ function displayedStreak(state) {
   return past + (complete ? 1 : 0)
 }
 
-function speechLine(mood, tasks, streak, name, tick) {
-  if (tasks.length === 0) return 'Give me a ritual.'
-  if (mood === 'ascended') {
-    const bank = streak >= 2 ? LINES.ascended.cult : LINES.ascended.sweet
-    const line = bank[tick % bank.length]
-    return typeof line === 'function' ? line(name, streak) : line
-  }
-  const bank = LINES[mood]
-  return bank[tick % bank.length]
+function speechLine(mood, tick) {
+  if (mood === 'ascended') return 'your doing great keep going UwU🩷'
+  if (mood === 'neutral' || mood === 'disgruntled') return '...'
+  return GIBBERISH[tick % GIBBERISH.length]
 }
 
 function makeShards() {
@@ -305,159 +280,138 @@ function withTasks(tasks) {
   return tasks.length > 0 ? tasks : freshTasks()
 }
 
-function Meadow({ aura }) {
-  return (
-    <div className="absolute inset-0 bg-gradient-to-b from-sky-300 via-pink-200 to-lime-200">
-      <svg className="sun-spin absolute -right-2 top-2 h-28 w-28" viewBox="0 0 100 100" aria-hidden="true">
-        {Array.from({ length: 8 }, (_, index) => (
-          <line
-            key={index}
-            x1="50"
-            y1="14"
-            x2="50"
-            y2="28"
-            stroke="#facc15"
-            strokeWidth="5"
-            strokeLinecap="round"
-            transform={`rotate(${index * 45} 50 50)`}
-          />
-        ))}
-        <circle cx="50" cy="50" r="16" fill="#fde047" />
-      </svg>
-      <svg className="absolute inset-x-2 top-8 h-28" viewBox="0 0 200 80" fill="none" aria-hidden="true">
-        <path d="M8 78 A92 72 0 0 1 192 78" stroke="#fb7185" strokeWidth="7" />
-        <path d="M16 78 A84 64 0 0 1 184 78" stroke="#fb923c" strokeWidth="7" />
-        <path d="M24 78 A76 56 0 0 1 176 78" stroke="#facc15" strokeWidth="7" />
-        <path d="M32 78 A68 48 0 0 1 168 78" stroke="#4ade80" strokeWidth="7" />
-        <path d="M40 78 A60 40 0 0 1 160 78" stroke="#38bdf8" strokeWidth="7" />
-        <path d="M48 78 A52 32 0 0 1 152 78" stroke="#a78bfa" strokeWidth="7" />
-      </svg>
-      {SPARKLE_SPOTS.slice(0, Math.min(5, Math.max(1, aura))).map(([left, top], index) => (
-        <Sparkles
-          key={`${left}-${top}`}
-          className="twinkle absolute h-6 w-6 text-yellow-100 drop-shadow"
-          style={{ left, top, animationDelay: `${index * 0.18}s` }}
-          aria-hidden="true"
-        />
-      ))}
-    </div>
-  )
+function loadReadIds() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(INBOX_READ_KEY))
+    return new Set(Array.isArray(raw) ? raw.filter((id) => typeof id === 'string') : [])
+  } catch {
+    return new Set()
+  }
 }
 
-function Grass({ wilted }) {
-  return (
-    <svg className="absolute inset-x-0 bottom-0 z-20 h-24" viewBox="0 0 200 80" preserveAspectRatio="none" aria-hidden="true">
-      <rect x="0" y="64" width="200" height="16" fill={wilted ? '#57534e' : '#15803d'} />
-      {Array.from({ length: 18 }, (_, index) => {
-        const x = 4 + index * 11
-        const height = 26 + (index % 4) * 8
-        const lean = wilted ? 16 : index % 2 === 0 ? -6 : 6
-        const color = wilted
-          ? index % 2 === 0 ? '#78716c' : '#a8a29e'
-          : ['#65a30d', '#16a34a', '#84cc16'][index % 3]
-        return (
-          <path
-            key={index}
-            d={`M${x} 78 Q${x + lean} ${78 - height / 2} ${x + lean * 0.35} ${78 - height}`}
-            stroke={color}
-            strokeWidth="4"
-            fill="none"
-            strokeLinecap="round"
-          />
-        )
-      })}
-    </svg>
-  )
+function hashSeed(seed) {
+  return [...seed].reduce((sum, char) => sum + char.charCodeAt(0), 0)
 }
 
-function bloodDrop(x, height, width) {
-  const half = width / 2
-  return `M${x - half * 0.4} 0
-    C${x - half} ${height * 0.35} ${x - half} ${height * 0.62} ${x} ${height}
-    C${x + half} ${height * 0.62} ${x + half} ${height * 0.35} ${x + half * 0.4} 0 Z`
+function popupSpot(id) {
+  const hash = hashSeed(id)
+  const left = 2 + (hash % 74)
+  const top = 4 + ((hash * 17) % 72)
+  return {
+    left: `clamp(8px, ${left}%, calc(100% - min(17rem, 92vw)))`,
+    top: `clamp(8px, ${top}%, calc(100% - 9rem))`,
+  }
+}
+
+function fillTemplate(text, habit, name, nights) {
+  return text
+    .replaceAll('{habit}', habit)
+    .replaceAll('{name}', name)
+    .replaceAll('{nights}', String(nights))
+}
+
+function missedFromEntry(entry, tasks) {
+  if (!entry || !(entry.total > 0) || entry.done === entry.total) return []
+  if (Array.isArray(entry.missed)) return entry.missed.filter((label) => typeof label === 'string' && label)
+  if (entry.done === 0) return tasks.map((task) => task.label)
+  return []
+}
+
+function whenLabel(item) {
+  if (item.openToday && item.nights === 0) return 'Still open today'
+  if (item.openToday && item.nights === 1) return 'Missed yesterday, still open'
+  if (item.openToday) return `Missed ${item.nights} nights, still open`
+  if (item.nights === 1) return 'Yesterday'
+  return `${item.nights} nights ago`
+}
+
+function pickMessage(habit, tone, index) {
+  const specific = inboxCatalog.habits?.[habit]?.[tone]
+  const list = Array.isArray(specific) && specific.length ? specific : inboxCatalog.fallback[tone]
+  return list[index % list.length]
+}
+
+function buildNotes(state, mood) {
+  if (mood !== 'disgruntled' && mood !== 'eldritch') return []
+  const nightsByHabit = new Map()
+  let cursor = addDays(state.activeDate, -1)
+  const tail = missedTail(state.log, state.activeDate)
+  for (let depth = 1; depth <= tail; depth += 1) {
+    missedFromEntry(state.log[cursor], state.tasks).forEach((habit) => {
+      nightsByHabit.set(habit, (nightsByHabit.get(habit) || 0) + 1)
+    })
+    cursor = addDays(cursor, -1)
+  }
+  const grouped = new Map()
+  state.tasks.filter((task) => !task.done).forEach((task) => {
+    grouped.set(task.label, {
+      habit: task.label,
+      nights: nightsByHabit.get(task.label) || 0,
+      openToday: true,
+    })
+  })
+
+  return [...grouped.values()]
+    .map((item, index) => {
+      const tone = mood === 'eldritch' || item.nights >= 2 ? 'eldritch' : 'disgruntled'
+      const message = pickMessage(item.habit, tone, index)
+      return {
+        id: `${item.habit}:${tone}`,
+        habit: item.habit,
+        tone,
+        title: fillTemplate(message.title, item.habit, state.petName, item.nights),
+        body: fillTemplate(message.body, item.habit, state.petName, item.nights),
+        when: whenLabel(item),
+        nights: item.nights,
+      }
+    })
+    .sort((a, b) => b.nights - a.nights || a.habit.localeCompare(b.habit))
 }
 
 function BloodFrame({ wiping }) {
-  const drops = [
-    [16, 58, 10, 0],
-    [42, 78, 13, 0.25],
-    [74, 50, 8, 0.45],
-    [108, 86, 14, 0.1],
-    [146, 64, 11, 0.35],
-    [178, 92, 16, 0.15],
-  ]
   return (
-    <svg
-      className={`pointer-events-none absolute inset-x-0 top-0 z-30 h-32 w-full ${wiping ? 'blood-wipe' : ''}`}
-      viewBox="0 0 200 100"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <rect x="0" y="0" width="200" height="8" fill="#7f1d1d" />
-      {drops.map(([x, height, width, delay]) => (
-        <path
-          key={x}
-          className="drip"
-          d={bloodDrop(x, height, width)}
-          fill="#9f1239"
-          style={{ animationDelay: `${delay}s` }}
-        />
-      ))}
-    </svg>
+    <img
+      src={bloodFrame}
+      alt=""
+      className={`pointer-events-none absolute inset-0 z-30 h-full w-full object-cover ${wiping ? 'blood-wipe' : ''}`}
+    />
   )
 }
 
-function Stage({ sceneMood, showHorror, name, aura, wiping }) {
-  const mask = sceneMood === 'ascended' ? 'portrait-mask' : ''
-  const float = sceneMood === 'ascended' && !showHorror ? 'pet-float' : ''
-  const portraitClass = 'absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-700'
+function Stage({ sceneMood, showHorror, name, wiping }) {
+  const showHappy = sceneMood === 'ascended' && !showHorror
+  const showMid = (sceneMood === 'neutral' || sceneMood === 'disgruntled') && !showHorror
+  const portraitClass = 'absolute inset-0 z-10 h-full w-full object-cover object-center transition-opacity duration-700'
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-[1.6rem]">
-      <div className={`absolute inset-0 transition-opacity duration-700 ${sceneMood === 'ascended' ? 'opacity-100' : 'opacity-0'}`}>
-        <Meadow aura={aura} />
-      </div>
-      <div className={`absolute inset-0 bg-gradient-to-b from-stone-100 to-emerald-50 transition-opacity duration-700 ${sceneMood === 'neutral' ? 'opacity-100' : 'opacity-0'}`} />
-      <div className={`absolute inset-0 bg-gradient-to-b from-zinc-500 to-stone-600 transition-opacity duration-700 ${sceneMood === 'disgruntled' ? 'opacity-100' : 'opacity-0'}`} />
-      <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,#4c151c_0%,#120608_72%)] transition-opacity duration-700 ${sceneMood === 'eldritch' ? 'opacity-100' : 'opacity-0'}`} />
-
+    <div className="relative aspect-square overflow-hidden rounded-[1.6rem] bg-stone-200">
       <img
-        src={goodPortrait}
-        alt={showHorror ? '' : `${name}, the bow hamster`}
-        className={`${portraitClass} ${mask} ${float} ${showHorror ? 'opacity-0' : 'opacity-100'} ${sceneMood === 'disgruntled' && !showHorror ? 'disgruntled-grade' : ''}`}
+        src={happyPortrait}
+        alt={showHappy ? `${name} celebrating in the meadow` : ''}
+        className={`${portraitClass} ${showHappy ? 'pet-float opacity-100' : 'opacity-0'}`}
+      />
+      <img
+        src={midPortrait}
+        alt={showMid ? `${name}, a little disappointed` : ''}
+        className={`${portraitClass} ${showMid ? 'opacity-100' : 'opacity-0'} ${sceneMood === 'disgruntled' && showMid ? 'brightness-90' : ''}`}
       />
       <img
         src={eldritchPortrait}
-        alt={showHorror ? `${name}, many-eyed and cursed` : ''}
-        className={`${portraitClass} ${mask} ${showHorror ? 'opacity-100' : 'opacity-0'}`}
+        alt={showHorror ? `${name}, cursed and fanged` : ''}
+        className={`${portraitClass} ${showHorror ? 'opacity-100' : 'opacity-0'}`}
       />
       {showHorror && (
         <>
-          <img src={eldritchPortrait} alt="" className={`absolute inset-0 z-[15] h-full w-full object-cover ${mask} glitch-a`} />
-          <img src={eldritchPortrait} alt="" className={`absolute inset-0 z-[15] h-full w-full object-cover ${mask} glitch-b`} />
+          <img src={eldritchPortrait} alt="" className="glitch-a absolute inset-0 z-[15] h-full w-full object-cover object-center" />
+          <img src={eldritchPortrait} alt="" className="glitch-b absolute inset-0 z-[15] h-full w-full object-cover object-center" />
         </>
-      )}
-
-      {sceneMood === 'ascended' && <Grass wilted={false} />}
-      {sceneMood === 'disgruntled' && <Grass wilted />}
-      {sceneMood === 'neutral' && !showHorror && (
-        <svg className="paw-tap absolute right-6 bottom-10 z-20 h-11 w-11 text-white/85 drop-shadow" viewBox="0 0 64 64" aria-hidden="true">
-          <ellipse cx="32" cy="42" rx="14" ry="12" fill="currentColor" />
-          <circle cx="16" cy="26" r="6" fill="currentColor" />
-          <circle cx="28" cy="16" r="6.5" fill="currentColor" />
-          <circle cx="42" cy="16" r="6.5" fill="currentColor" />
-          <circle cx="52" cy="28" r="5.5" fill="currentColor" />
-        </svg>
       )}
       {showHorror && (
         <>
           <div className="scanlines pointer-events-none absolute inset-0 z-20" />
-          <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,transparent_42%,rgba(90,0,0,0.72)_100%)]" />
+          <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,transparent_55%,rgba(40,0,0,0.45)_100%)]" />
           <BloodFrame wiping={wiping} />
         </>
-      )}
-      {sceneMood === 'disgruntled' && !showHorror && (
-        <div className="pointer-events-none absolute inset-0 z-10 bg-black/20" />
       )}
     </div>
   )
@@ -470,6 +424,9 @@ export default function Gremagotchi() {
   const [draft, setDraft] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(state.petName)
+  const [inboxOpen, setInboxOpen] = useState(false)
+  const [readIds, setReadIds] = useState(loadReadIds)
+  const [hiddenPopups, setHiddenPopups] = useState(() => new Set())
   const purgeRef = useRef(null)
 
   useEffect(() => {
@@ -519,12 +476,11 @@ export default function Gremagotchi() {
   const doneCount = state.tasks.filter((task) => task.done).length
   const total = state.tasks.length
   const ratio = total === 0 ? 0 : doneCount / total
-  const aura = Math.min(5, Math.max(1, streak || 1))
 
-  let speech = speechLine(mood, state.tasks, streak, state.petName, lineTick)
+  let speech = speechLine(sceneMood, lineTick)
   if (purge && (purge.stage === 'rupture' || purge.stage === 'flash')) speech = 'WAIT— DON’T—'
   if (purge?.stage === 'banish') speech = purge.line
-  if (purge?.stage === 'reveal') speech = speechLine(mood, state.tasks, streak, state.petName, lineTick)
+  if (purge?.stage === 'reveal') speech = speechLine(mood, lineTick)
 
   function startPurge(toMood) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -588,7 +544,7 @@ export default function Gremagotchi() {
   }
 
   function commitName() {
-    const next = nameDraft.trim().slice(0, 24) || 'Mote'
+    const next = nameDraft.trim().slice(0, 24) || 'Marshmallow'
     setState((current) => ({ ...current, petName: next }))
     setNameDraft(next)
     setEditingName(false)
@@ -601,23 +557,37 @@ export default function Gremagotchi() {
       const today = current.activeDate
       const tasks = withTasks(current.tasks)
       const count = tasks.length
+      const labels = tasks.map((task) => task.label)
       const log = { ...current.log }
+      const blank = { done: 0, total: count, missed: labels }
+      const perfect = { done: count, total: count, missed: [] }
       if (kind === 'blessed') {
-        for (let index = 1; index <= 4; index += 1) {
-          log[addDays(today, -index)] = { done: count, total: count }
-        }
+        for (let index = 1; index <= 4; index += 1) log[addDays(today, -index)] = perfect
         return { ...current, log, tasks: tasks.map((task) => ({ ...task, done: true })) }
       }
       if (kind === 'skipped') {
-        log[addDays(today, -1)] = { done: 0, total: count }
-        log[addDays(today, -2)] = { done: count, total: count }
+        log[addDays(today, -1)] = blank
+        log[addDays(today, -2)] = perfect
         return { ...current, log, tasks: tasks.map((task) => ({ ...task, done: false })) }
       }
-      log[addDays(today, -1)] = { done: 0, total: count }
-      log[addDays(today, -2)] = { done: 0, total: count }
-      log[addDays(today, -3)] = { done: 0, total: count }
+      log[addDays(today, -1)] = blank
+      log[addDays(today, -2)] = blank
+      log[addDays(today, -3)] = blank
       return { ...current, log, tasks: tasks.map((task) => ({ ...task, done: false })) }
     })
+  }
+
+  const notes = buildNotes(state, showHorror ? 'eldritch' : mood)
+  const unread = notes.filter((note) => !readIds.has(note.id)).length
+  const eldritchPopups = mood === 'eldritch' && !purge
+    ? notes.filter((note) => !hiddenPopups.has(note.id))
+    : []
+
+  function openInbox() {
+    const ids = notes.map((note) => note.id)
+    localStorage.setItem(INBOX_READ_KEY, JSON.stringify(ids))
+    setReadIds(new Set(ids))
+    setInboxOpen(true)
   }
 
   const hardShake = purge?.stage === 'rupture'
@@ -632,7 +602,22 @@ export default function Gremagotchi() {
       )}
 
       <main className={`relative z-10 mx-auto w-full max-w-md rounded-[2rem] border p-4 backdrop-blur-md transition-colors duration-700 sm:p-5 ${theme.card} ${showHorror ? 'rgb-frame' : ''}`}>
-        <p className={`text-xs font-extrabold tracking-[0.22em] uppercase ${theme.muted}`}>Gremagotchi</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className={`text-xs font-extrabold tracking-[0.22em] uppercase ${theme.muted}`}>Gremagotchi</p>
+          <button
+            type="button"
+            onClick={openInbox}
+            aria-label={unread > 0 ? `Inbox, ${unread} unread` : 'Inbox'}
+            className={`relative grid h-10 w-10 place-items-center rounded-full ${theme.chip}`}
+          >
+            <Inbox className="h-5 w-5" aria-hidden="true" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-extrabold text-white">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
+        </div>
         <div className="mt-1 flex items-start justify-between gap-3">
           <div className="min-w-0">
             {editingName ? (
@@ -682,7 +667,6 @@ export default function Gremagotchi() {
             sceneMood={sceneMood}
             showHorror={showHorror}
             name={state.petName}
-            aura={aura}
             wiping={wiping}
           />
           <p
@@ -783,8 +767,47 @@ export default function Gremagotchi() {
               </button>
             ))}
           </div>
-        </details>
-      </main>
+          </details>
+
+          {inboxOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Inbox from ${state.petName}`}
+              className={`absolute inset-0 z-30 flex flex-col rounded-[2rem] p-4 sm:p-5 ${theme.sheet}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className={`text-xs font-extrabold tracking-[0.22em] uppercase ${theme.muted}`}>From {state.petName}</p>
+                  <h2 className="text-2xl font-extrabold tracking-tight">Inbox</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInboxOpen(false)}
+                  aria-label="Close inbox"
+                  className={`grid h-10 w-10 place-items-center rounded-full ${theme.note}`}
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+              {notes.length === 0 ? (
+                <p className={`mt-6 rounded-[1.4rem] px-4 py-4 font-bold ${theme.note}`}>{inboxCatalog.empty}</p>
+              ) : (
+                <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                  {notes.map((note) => (
+                    <li key={note.id} className={`rounded-[1.4rem] px-4 py-3 ${theme.note}`}>
+                      <p className={`text-xs font-extrabold tracking-wide uppercase ${theme.muted}`}>
+                        {state.petName} · {note.when}
+                      </p>
+                      <p className="mt-1 font-extrabold">{note.title}</p>
+                      {note.body ? <p className="mt-1 text-sm leading-snug font-semibold">{note.body}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </main>
 
       {purge?.stage === 'flash' && <div className="gold-flash pointer-events-none fixed inset-0 z-40" />}
 
@@ -821,6 +844,34 @@ export default function Gremagotchi() {
         >
           Skip
         </button>
+      )}
+      {eldritchPopups.length > 0 && createPortal(
+        <div className="pointer-events-none fixed inset-0 z-[70]" aria-live="polite">
+          {eldritchPopups.map((note, index) => (
+            <article
+              key={note.id}
+              className="eldritch-popup pointer-events-auto fixed flex w-[min(17rem,calc(100vw-1.5rem))] items-start gap-2 rounded-2xl bg-zinc-950 px-3 py-3 text-rose-50 shadow-2xl ring-1 ring-red-800"
+              style={{ ...popupSpot(note.id), animationDelay: `${index * 90}ms` }}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-extrabold tracking-wide text-red-300 uppercase">
+                  {state.petName} · {note.when}
+                </p>
+                <p className="mt-0.5 font-extrabold">{note.title}</p>
+                {note.body ? <p className="mt-1 text-sm leading-snug font-semibold text-rose-100/90">{note.body}</p> : null}
+              </div>
+              <button
+                type="button"
+                aria-label={`Dismiss ${note.title}`}
+                onClick={() => setHiddenPopups((current) => new Set(current).add(note.id))}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-rose-200 hover:bg-red-950"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </article>
+          ))}
+        </div>,
+        document.body,
       )}
     </div>
   )
